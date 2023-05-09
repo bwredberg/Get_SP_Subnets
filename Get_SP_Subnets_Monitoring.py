@@ -109,7 +109,8 @@ def db_update_list_of_subnets(list_of_subnets, db_connection, debug=False):
     push_to_table = db_build_data_push_to_table(list_of_subnets, kaosdb_connection)
     #Execute the db insert
     number_of_rows = db_execute_push_to_table(push_to_table, db_connection, debug)
-    print(f'The number of rows pushed to the database is {number_of_rows}')
+    if debug:
+        print(f'The number of rows pushed to the database is {number_of_rows}')
     return number_of_rows
 
 def db_inc_down_count_subnet_missing(list_of_subnets, db_connection, debug=False):
@@ -139,9 +140,9 @@ def db_find_down_count_equal_number(count, db_connection, debug=False):
     #count is the number of times we should see the subnet missing before we alert
     #select * from monitor_subnets where down_count = 5;
     #reults will be a list of dictionars - one for each row returned
-    results = db_connection.query(f"select * from monitor_subnets where down_count = {count};")
+    results = db_connection.query(f"select monitor_subnets.*, sla_locations.core as core from monitor_subnets, sla_locations where (source_as = asNum and down_count = {count});")
     if debug:
-        print(f'The query for db_alert_down_count_equal_number is: "select * from monitor_subnets where down_count = {count};"')
+        print(f'The query for db_alert_down_count_equal_number is: {count};')
     return results
 
 def build_send_alert_email(list_of_dicts, email=True, debug=False):
@@ -208,4 +209,5 @@ number_of_rows = db_inc_down_count_subnet_missing(list_of_subnets, kaosdb_connec
 #Step 4 reset down_count if a subnet is found
 number_of_rows = db_zero_down_count_subnet_exists(list_of_subnets, kaosdb_connection, debug=False)
 #Step 5 send an email alert if a subnet is missing five runs in a row
-build_send_alert_email(db_find_down_count_equal_number(5, kaosdb_connection, debug=False), email=False, debug=False)
+#Need to figure out why, if you make debaug True no data is based to the jinja template???
+build_send_alert_email(db_find_down_count_equal_number(5, kaosdb_connection, debug=False), email=True, debug=False)

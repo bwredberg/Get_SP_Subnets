@@ -4,19 +4,23 @@
     <title></title>
 </head>
 <body>
-    <h2>Silver peak missing subnets as of {{TODAY}}</h2>
+    <h2>These subnets have disappeared from the Silver peak fabric as of {{TODAY}}</h2>
     <p></p>
     <table border="1">
         <tr>
-            <th>Source AS</th>
+            <th>Source Core</th>
+            <th>&nbsp&nbspSource AS</th>
 	        <th>Subnet</th>
         </tr>
 {% for SUBNET in SUBNET_LIST %}
         <tr>
-            <td> {{ SUBNET.source_as }} </td>
-	        <td> {{ SUBNET.subnet }} </td>
+            <td>&nbsp {{ SUBNET.core }}</td>
+            <td>&nbsp {{ SUBNET.source_as }} </td>
+	        <td>&nbsp {{ SUBNET.subnet }} </td>
 {% endfor %}
         </tr>
     </table>
+<br>
+No further notifications will be sent for these subnets.  Please investigate.
 </body>
 </html>
