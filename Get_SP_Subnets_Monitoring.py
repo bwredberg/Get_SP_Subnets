@@ -70,7 +70,7 @@ def create_subnet_list(list_of_subnet_dicts, debug=False):
     list_of_subnets = []
     count = 0
     for subnet in list_of_subnet_dicts:
-        list_of_subnets.append(subnet['subnet'])
+        list_of_subnets.append(subnet['subnet'].replace('/','_'))
         count += 1
     if debug:
         pprint(list_of_subnets)
@@ -196,16 +196,16 @@ comment_end_string='#}'
 )
 
 
-#Get the list of subnets from Orchestrator
+#Step1 - get the list of subnets from Orchestrator
 orch_results = orch_get_subnet_info(Prod, MGOSPR1, debug=False)
 #put the results in the format I want
 list_of_subnet_dicts = process_subnets(orch_results, debug=False, interface="all")
-#Step 1 get the list of subnets and update the database
+#Step 2 get the list of subnets and update the database
 db_update_list_of_subnets(list_of_subnet_dicts, kaosdb_connection, debug=False)
 list_of_subnets = create_subnet_list(list_of_subnet_dicts, debug=False)
-#not working yet to pass a list into the mysql query
-#number_of_rows = db_inc_down_count_subnet_missing(list_of_subnets, kaosdb_connection, debug=True)
-
-#number_of_rows = db_zero_down_count_subnet_exists(list_of_subnets, kaosdb_connection, debug=True)
-
-build_send_alert_email(db_find_down_count_equal_number(5, kaosdb_connection, debug=False), email=True, debug=False)
+#Step 3 inc down_count if a subnet is missing
+number_of_rows = db_inc_down_count_subnet_missing(list_of_subnets, kaosdb_connection, debug=False)
+#Step 4 reset down_count if a subnet is found
+number_of_rows = db_zero_down_count_subnet_exists(list_of_subnets, kaosdb_connection, debug=False)
+#Step 5 send an email alert if a subnet is missing five runs in a row
+build_send_alert_email(db_find_down_count_equal_number(5, kaosdb_connection, debug=False), email=False, debug=False)
