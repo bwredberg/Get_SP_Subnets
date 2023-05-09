@@ -7,7 +7,7 @@
 #   If there has been a change (add or subtract) it should email me with that information.
 #
 #   not needed at the end of the api_url = +"?source=menu_rest_apis_id"
-import smtplib, jinja2, datetime, time
+import smtplib, jinja2, datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from SPOrchestrator import SPOrchestrator
@@ -42,7 +42,7 @@ def orch_get_subnet_info(orch_ip, ec_id, cached="true", debug=False):
 
 def process_subnets(Results, debug=False, interface="all"):
     #Figures out what the source AS is for each subnet
-    list_of_subnets = []
+    list_of_subnet_dicts = []
     Subnet_Dict = Results.json()
     for Subnet in Subnet_Dict['subnets']['entries']:
         item = {}
@@ -57,12 +57,24 @@ def process_subnets(Results, debug=False, interface="all"):
                 item['source_as'] = 0
             else:
                 item['source_as'] = int(source_as[0])
-            list_of_subnets.append(item)
+            list_of_subnet_dicts.append(item)
         elif Subnet['state']['ifName'] == interface:
             item['subnet'] = Subnet['state']['prefix']
             source_as = Subnet['state']['aspath'].split(',')
             item['source_as'] = int(source_as[0])
-            list_of_subnets.append(item)
+            list_of_subnet_dicts.append(item)
+    return list_of_subnet_dicts
+
+def create_subnet_list(list_of_subnet_dicts, debug=False):
+    #returns a list of found subnets - list only no dictonary
+    list_of_subnets = []
+    count = 0
+    for subnet in list_of_subnet_dicts:
+        list_of_subnets.append(subnet['subnet'])
+        count += 1
+    if debug:
+        pprint(list_of_subnets)
+        print(f'The number of subnets in list_of_subnets is {count}')
     return list_of_subnets
 
 def db_get_table_data(db_connection, table="monitor_subnets", debug=False):
@@ -92,37 +104,67 @@ def db_execute_push_to_table(q_list, db_connection, debug=False):
         print(f'The number of rows pushed to the database is {number_of_lines}')
     return number_of_lines
 
-def db_update_list_of_subnets(orch_ip, ec_id, cached="true", debug=False):
-    #not currently used for anything
-    #pulls the list from Orchestrator, processes it and pushes it to the monitor_subnets table
-    #Get the list of subnets from Orchestrator
-    orch_results = orch_get_subnet_info(orch_ip, ec_id, cached, debug)
-    #put the results in the format I want
-    list_of_subnets = process_subnets(orch_results, debug, interface="all")
+def db_update_list_of_subnets(list_of_subnets, db_connection, debug=False):
     #Build the data to insert into the db
     push_to_table = db_build_data_push_to_table(list_of_subnets, kaosdb_connection)
     #Execute the db insert
-    number_of_rows = db_execute_push_to_table(push_to_table, kaosdb_connection, debug)
+    number_of_rows = db_execute_push_to_table(push_to_table, db_connection, debug)
     print(f'The number of rows pushed to the database is {number_of_rows}')
     return number_of_rows
 
-def db_inc_down_count_subnet_missing():
+def db_inc_down_count_subnet_missing(list_of_subnets, db_connection, debug=False):
     #Query update monitor_subnets, sla_locations set down_count = down_count + 1 where (source_as = asNum AND NOT in <passed list of subnets>);
-    return
+    #This is not good code as it is subject to sql injection attacks see https://stackoverflow.com/questions/589284/imploding-a-list-for-use-in-a-python-mysqldb-in-clause
+    tuple_list = tuple(list_of_subnets)
+    query = f"update monitor_subnets, sla_locations set down_count = down_count + 1 where (source_as = asNum and subnet NOT in {tuple_list});"
+    if debug:
+        print(query)
+    number_of_rows = db_connection.execute(query)
+    if debug:
+        print(f'The number of rows modified by db_inc_down_count_subnet_missing is {number_of_rows}')
+    return number_of_rows
 
-def db_zero_down_count_subnet_exists():
+def db_zero_down_count_subnet_exists(list_of_subnets, db_connection, debug=False):
     #Query update monitor_subnets, sla_locations set down_count = down_count + 1 where (source_as = asNum AND in <passed list of subnets>);
-    return
+    tuple_list = tuple(list_of_subnets)
+    query = f'update monitor_subnets, sla_locations set down_count = 0 where (source_as = asNum and subnet in {tuple_list});'
+    if debug:
+        print(query)
+    number_of_rows = db_connection.execute(query)
+    if debug:
+        print(f'The number of rows mondified by db_zero_down_count_subnet_exists is {number_of_rows}')
+    return number_of_rows
 
-def db_alert_down_count_equal_number(count):
+def db_find_down_count_equal_number(count, db_connection, debug=False):
     #count is the number of times we should see the subnet missing before we alert
+    #select * from monitor_subnets where down_count = 5;
+    #reults will be a list of dictionars - one for each row returned
+    results = db_connection.query(f"select * from monitor_subnets where down_count = {count};")
+    if debug:
+        print(f'The query for db_alert_down_count_equal_number is: "select * from monitor_subnets where down_count = {count};"')
+    return results
+
+def build_send_alert_email(list_of_dicts, email=True, debug=False):
+    #receive a list of dicts from db_find_down_count_equal_number
+    #if that list is zero skip sending the email
+    #if that list is not zero send the email with the jinja html template
+    if debug:
+        print(type(list_of_dicts))
+        for row in list_of_dicts:
+            print(f'database row = {row}')
+    today = datetime.datetime.now()
+    today = today.strftime("%B %d, %Y %H:%M%p")
+    if email:
+        send_email(je.get_template(template_file_path).render(SUBNET_LIST=list_of_dicts, TODAY=today))
+    else:
+        print(je.get_template(template_file_path).render(SUBNET_LIST=list_of_dicts, TODAY=today))
     return
 
-def send_alert_email(message, to_address="brian.wredberg@genmills.com"):
+def send_email(message, to_address="brian.wredberg@genmills.com"):
     #message is the email body of the alert to be sent
     #to_address is where the email will be sent
     msg = MIMEMultipart()
-    msg['Subject'] = f'XXXXXXXX'
+    msg['Subject'] = f'Silver peak missing subnets'
     msg['From'] = "noreply@vm-mgo-g528525l.genmills.com"
     msg['To'] = to_address
     msg.attach(MIMEText(message, 'html'))
@@ -131,7 +173,7 @@ def send_alert_email(message, to_address="brian.wredberg@genmills.com"):
     s.quit()
     return
 
-kaosdb_connection = sql(dbUser="admin", dbPassword="Trisf2hfm")
+kaosdb_connection = sql(dbUser="admin", dbPassword="Trisf2hfm", debug=False)
 #Lab_Orch_IP = "172.16.216.81"
 Prod = "172.16.219.243"
 #MGO_SPLAB_SPR1 = "0.NE"
@@ -140,8 +182,30 @@ Prod = "172.16.219.243"
 #AUMLSPR1 = "68.NE"
 MGOSPR1 = "10.NE"
 #JDCSPR1 = "11.NE"
+template_file_path = "html_email_template_missing_subnets.html"
 
+je = jinja2.Environment (
+loader=jinja2.FileSystemLoader(searchpath="/home/g528525/python/Get_SP_Subnets/"), 
+trim_blocks=True, 
+block_start_string='{%', 
+block_end_string='%}', 
+variable_start_string='{{', 
+variable_end_string='}}',
+comment_start_string='{#',
+comment_end_string='#}'
+)
+
+
+#Get the list of subnets from Orchestrator
+orch_results = orch_get_subnet_info(Prod, MGOSPR1, debug=False)
+#put the results in the format I want
+list_of_subnet_dicts = process_subnets(orch_results, debug=False, interface="all")
 #Step 1 get the list of subnets and update the database
-db_update_list_of_subnets(Prod, MGOSPR1, debug=False)
+db_update_list_of_subnets(list_of_subnet_dicts, kaosdb_connection, debug=False)
+list_of_subnets = create_subnet_list(list_of_subnet_dicts, debug=False)
+#not working yet to pass a list into the mysql query
+#number_of_rows = db_inc_down_count_subnet_missing(list_of_subnets, kaosdb_connection, debug=True)
 
+#number_of_rows = db_zero_down_count_subnet_exists(list_of_subnets, kaosdb_connection, debug=True)
 
+build_send_alert_email(db_find_down_count_equal_number(5, kaosdb_connection, debug=False), email=True, debug=False)

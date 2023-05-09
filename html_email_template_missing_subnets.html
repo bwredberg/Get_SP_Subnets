@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+    <h2>Silver peak missing subnets as of {{TODAY}}</h2>
+    <p></p>
+    <table border="1">
+        <tr>
+            <th>Source AS</th>
+	        <th>Subnet</th>
+        </tr>
+{% for SUBNET in SUBNET_LIST %}
+        <tr>
+            <td> {{ SUBNET.source_as }} </td>
+	        <td> {{ SUBNET.subnet }} </td>
+{% endfor %}
+        </tr>
+    </table>
+</body>
+</html>
