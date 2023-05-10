@@ -164,7 +164,7 @@ def build_send_alert_email(list_of_dicts, email=True, debug=False):
         print(f'{today} - There were no missing subnets so no email needs to be sent.')
     return
 
-def send_email(message, to_address="brian.wredberg@genmills.com"):
+def send_email(message, to_address="brian.wredberg@genmills.com, scenatiempo@bluebuff.com"):
     #message is the email body of the alert to be sent
     #to_address is where the email will be sent
     msg = MIMEMultipart()
@@ -210,7 +210,7 @@ list_of_subnets = create_subnet_list(list_of_subnet_dicts, debug=False)
 #Step 3 inc down_count if a subnet is missing
 number_of_rows = db_inc_down_count_subnet_missing(list_of_subnets, kaosdb_connection, debug=False)
 #Step 4 reset down_count if a subnet is found
-number_of_rows = db_zero_down_count_subnet_exists(list_of_subnets, kaosdb_connection, debug=True)
+number_of_rows = db_zero_down_count_subnet_exists(list_of_subnets, kaosdb_connection, debug=False)
 #Step 5 send an email alert if a subnet is missing five runs in a row
 #Need to figure out why, if you make debaug True no data is based to the jinja template???
 build_send_alert_email(db_find_down_count_equal_number(5, kaosdb_connection, debug=False), email=True, debug=False)
