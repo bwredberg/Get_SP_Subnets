@@ -6,7 +6,7 @@
 #   Once it has the list it should store it and then next time it is run it should compare the lists of subnets to see if anythihg has changed.
 #   If there has been a change (add or subtract) it should email me with that information.
 #
-#   not needed at the end of the api_url = +"?source=menu_rest_apis_id"
+
 import smtplib, jinja2, datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -142,6 +142,7 @@ def db_find_down_count_equal_number(count, db_connection, debug=False):
     #reults will be a list of dictionars - one for each row returned
     results = db_connection.query(f"select monitor_subnets.*, sla_locations.core as core from monitor_subnets, sla_locations where (source_as = asNum and down_count = {count});")
     if debug:
+        print(f'the reults row count is: {results.rowcount}')
         print(f'The query for db_alert_down_count_equal_number is: {count};')
     return results
 
@@ -151,14 +152,16 @@ def build_send_alert_email(list_of_dicts, email=True, debug=False):
     #if that list is not zero send the email with the jinja html template
     if debug:
         print(type(list_of_dicts))
-        for row in list_of_dicts:
-            print(f'database row = {row}')
     today = datetime.datetime.now()
-    today = today.strftime("%B %d, %Y %H:%M%p")
-    if email:
-        send_email(je.get_template(template_file_path).render(SUBNET_LIST=list_of_dicts, TODAY=today))
+    today = today.strftime("%B %d, %Y %-I:%M%p")
+    #This checks the return and if it is emtpy we skip the email
+    if list_of_dicts.rowcount > 0:
+        if email:
+            send_email(je.get_template(template_file_path).render(SUBNET_LIST=list_of_dicts, TODAY=today))
+        else:
+            print(je.get_template(template_file_path).render(SUBNET_LIST=list_of_dicts, TODAY=today))
     else:
-        print(je.get_template(template_file_path).render(SUBNET_LIST=list_of_dicts, TODAY=today))
+        print(f'{today} - There were no missing subnets so no email needs to be sent.')
     return
 
 def send_email(message, to_address="brian.wredberg@genmills.com"):
@@ -210,4 +213,4 @@ number_of_rows = db_inc_down_count_subnet_missing(list_of_subnets, kaosdb_connec
 number_of_rows = db_zero_down_count_subnet_exists(list_of_subnets, kaosdb_connection, debug=False)
 #Step 5 send an email alert if a subnet is missing five runs in a row
 #Need to figure out why, if you make debaug True no data is based to the jinja template???
-build_send_alert_email(db_find_down_count_equal_number(5, kaosdb_connection, debug=False), email=True, debug=False)
+build_send_alert_email(db_find_down_count_equal_number(5, kaosdb_connection, debug=False), email=False, debug=False)
