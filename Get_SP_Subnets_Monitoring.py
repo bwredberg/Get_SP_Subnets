@@ -114,7 +114,6 @@ def db_update_list_of_subnets(list_of_subnets, db_connection, debug=False):
     return number_of_rows
 
 def db_inc_down_count_subnet_missing(list_of_subnets, db_connection, debug=False):
-    #Query update monitor_subnets, sla_locations set down_count = down_count + 1 where (source_as = asNum AND NOT in <passed list of subnets>);
     #This is not good code as it is subject to sql injection attacks see https://stackoverflow.com/questions/589284/imploding-a-list-for-use-in-a-python-mysqldb-in-clause
     tuple_list = tuple(list_of_subnets)
     query = f"update monitor_subnets, sla_locations set down_count = down_count + 1 where (source_as = asNum and subnet NOT in {tuple_list});"
@@ -140,10 +139,14 @@ def db_find_down_count_equal_number(count, db_connection, debug=False):
     #count is the number of times we should see the subnet missing before we alert
     #select * from monitor_subnets where down_count = 5;
     #reults will be a list of dictionars - one for each row returned
+    temp_results = []
     results = db_connection.query(f"select monitor_subnets.*, sla_locations.core as core from monitor_subnets, sla_locations where (source_as = asNum and down_count = {count});")
     if debug:
         print(f'the reults row count is: {results.rowcount}')
-        print(f'The query for db_alert_down_count_equal_number is: {count};')
+    if results.rowcount != 0:
+        for row in results:
+            temp_results.append({'source_as': row['source_as'], 'subnet': row['subnet'].replace("_","/"), 'core': row['core']})
+    results = temp_results
     return results
 
 def build_send_alert_email(list_of_dicts, email=True, debug=False):
@@ -154,8 +157,8 @@ def build_send_alert_email(list_of_dicts, email=True, debug=False):
         print(type(list_of_dicts))
     today = datetime.datetime.now()
     today = today.strftime("%B %d, %Y %-I:%M%p")
-    #This checks the return and if it is emtpy we skip the email
-    if list_of_dicts.rowcount > 0:
+    #This checks list and if it is emtpy we skip the email
+    if list_of_dicts:
         if email:
             send_email(je.get_template(template_file_path).render(SUBNET_LIST=list_of_dicts, TODAY=today))
         else:
