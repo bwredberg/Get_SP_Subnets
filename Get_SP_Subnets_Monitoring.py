@@ -204,7 +204,7 @@ comment_end_string='#}'
 orch_results = orch_get_subnet_info(Prod, MGOSPR1, debug=False)
 #put the results in the format I want
 list_of_subnet_dicts = process_subnets(orch_results, debug=False, interface="all")
-#Step 1 get the list of subnets and update the database
+#Step 2 get the list of subnets and update the database
 db_update_list_of_subnets(list_of_subnet_dicts, kaosdb_connection, debug=False)
 list_of_subnets = create_subnet_list(list_of_subnet_dicts, debug=False)
 #Step 3 inc down_count if a subnet is missing

@@ -44,7 +44,7 @@ def get_subnet_info(orchIP, ecID, cached="true", debug=False):
     #ecID = the ??.NE device ID of the target EdgeConnect
     #If cached = true then it will use the subnet list from Orchestrator.
     #If it is false it will pull a new list directly from the specified EC.
-    #create an instance of SPOrchestrator
+    #create an instance of SPOrchestrator!!!!!!!!!!
     spOrch = SPOrchestrator(ipaddress=orchIP, user="admin", password="Trisf2hfm!", debug=debug)
     #authenticate to spOrch
     spOrch.login()
