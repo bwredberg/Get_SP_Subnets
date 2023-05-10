@@ -167,7 +167,7 @@ def build_send_alert_email(list_of_dicts, email=True, debug=False):
         print(f'{today} - There were no missing subnets so no email needs to be sent.')
     return
 
-def send_email(message, to_address="brian.wredberg@genmills.com"):
+def send_email(message, to_address="brian.wredberg@genmills.com, scenatiempo@bluebuff.com"):
     #message is the email body of the alert to be sent
     #to_address is where the email will be sent
     msg = MIMEMultipart()
