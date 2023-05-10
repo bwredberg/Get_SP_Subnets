@@ -70,7 +70,7 @@ def create_subnet_list(list_of_subnet_dicts, debug=False):
     list_of_subnets = []
     count = 0
     for subnet in list_of_subnet_dicts:
-        list_of_subnets.append(subnet['subnet'])
+        list_of_subnets.append(subnet['subnet'].replace("/","_"))
         count += 1
     if debug:
         pprint(list_of_subnets)
@@ -210,7 +210,7 @@ list_of_subnets = create_subnet_list(list_of_subnet_dicts, debug=False)
 #Step 3 inc down_count if a subnet is missing
 number_of_rows = db_inc_down_count_subnet_missing(list_of_subnets, kaosdb_connection, debug=False)
 #Step 4 reset down_count if a subnet is found
-number_of_rows = db_zero_down_count_subnet_exists(list_of_subnets, kaosdb_connection, debug=False)
+number_of_rows = db_zero_down_count_subnet_exists(list_of_subnets, kaosdb_connection, debug=True)
 #Step 5 send an email alert if a subnet is missing five runs in a row
 #Need to figure out why, if you make debaug True no data is based to the jinja template???
-build_send_alert_email(db_find_down_count_equal_number(5, kaosdb_connection, debug=False), email=False, debug=False)
+build_send_alert_email(db_find_down_count_equal_number(5, kaosdb_connection, debug=False), email=True, debug=False)
