@@ -70,7 +70,7 @@ def create_subnet_list(list_of_subnet_dicts, debug=False):
     list_of_subnets = []
     count = 0
     for subnet in list_of_subnet_dicts:
-        list_of_subnets.append(subnet['subnet'].replace('/','_'))
+        list_of_subnets.append(subnet['subnet'])
         count += 1
     if debug:
         pprint(list_of_subnets)
@@ -200,11 +200,11 @@ comment_end_string='#}'
 )
 
 
-#Step1 - get the list of subnets from Orchestrator
+#Get the list of subnets from Orchestrator
 orch_results = orch_get_subnet_info(Prod, MGOSPR1, debug=False)
 #put the results in the format I want
 list_of_subnet_dicts = process_subnets(orch_results, debug=False, interface="all")
-#Step 2 get the list of subnets and update the database
+#Step 1 get the list of subnets and update the database
 db_update_list_of_subnets(list_of_subnet_dicts, kaosdb_connection, debug=False)
 list_of_subnets = create_subnet_list(list_of_subnet_dicts, debug=False)
 #Step 3 inc down_count if a subnet is missing
